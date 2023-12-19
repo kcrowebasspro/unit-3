@@ -60,8 +60,36 @@ mke.evict.join.sf <- mke.rent.2019.sf %>%
 
 class(mke.evict.join.sf)
 
+mke.evict.join.sf <- st_transform(mke.evict.join.sf, crs = 4326)
+
 # write out the geojson
-geojson_write(mke.evict.join.sf, file = "C:/Users/kcrow/Documents/geog575/unit-3/data/mke_evictions_w_rents.geojson")
+mkegeojson_write(mke.evict.join.sf, file = "C:/Users/kcrow/Documents/geog575/unit-3/data/mke_evictions_w_rents.geojson")
+
+st_crs(mke.evict.join.sf)
+
+# Write out just the attributes to a CSV
+mke.evict.join.sf %>%
+  st_drop_geometry() %>%
+  write_csv("C:/Users/kcrow/Documents/geog575/unit-3/data/mke_evictions_w_rents_data.CSV")
+
+# Pull some counties for Wisconsin
+wi.counties.2019.sf <- get_acs(
+  state = "WI",
+  geography = "county", 
+  variables = "B25064_001",
+  geometry = TRUE,
+  year = 2019,
+  survey = "acs5")
+
+
+# Select the MKE Metro Area
+wi.counties.2019.sf %>%
+  filter(grepl("washington", NAME, ignore.case = TRUE ) |
+           grepl("ozaukee", NAME, ignore.case = TRUE ) |
+           grepl("waukesha", NAME, ignore.case = TRUE ) |
+           grepl("milwaukee", NAME, ignore.case = TRUE ) |
+           grepl("racine", NAME, ignore.case = TRUE ))
+
 
 
 
