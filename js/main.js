@@ -37,14 +37,50 @@ function setMap(){
     Promise.all(promises).then(callback);
 
     function callback(data) {
-        var csvData = data[0],
+        var evictData = data[0],
             mkeTracts = data[1],
             mkeCounties = data[2];
 
+            console.log(evictData);
+            
         //create the features variable
         var countyBounds = topojson.feature(mkeCounties, mkeCounties.objects.metro_counties),
         countyTracts = topojson.feature(mkeTracts, mkeTracts.objects.mke_tracts).features;    
 
+        //variables for data join
+        var attrArray = ["med_rent", "moe", "cty_med_rent", "pct_med_rent", "month_filings", "month_rate", "pct_white", "pct_black", "pct_latinx"];
+
+        //loop through the csv to assign each set of csv attribute values to geojson region
+        for (var i=0; i<evictData.length; i++){
+
+            var csvTract = evictData[i]; //the current Census Tract
+            var csvKey = csvTract.geoid; //geoid is a unique identifier for each tract
+
+            //loop through the geojson to find correct tract
+            for (var a=0; a<countyTracts.length; a++){
+
+                var geojsonProps = countyTracts[a].properties; //the current region geojson properties
+
+                var geojsonKey = geojsonProps.geoid; //the geojson key to join with the CSV data
+
+                //where primary keys match, transfer the CSV data to geojson properties object
+                if(geojsonKey == csvKey){
+
+                    //assign all attributes and values
+                    attrArray.forEach(function(attr){
+                        var val = parseFloat(evictData[attr]); //get the csv attribute value
+                        geojsonProps[attr] = val; //assign attribute and value to geojson properties
+                    });
+                    console.log(geojsonProps);
+
+                };
+
+            };
+
+
+        };
+
+        /*
         //create a graticule generator
         var graticule = d3.geoGraticule()
             .step([0.25, 0.25]); 
@@ -62,6 +98,7 @@ function setMap(){
             .append("path") //append each element to the svg
             .attr("class", "gratLines") //assign a class for styling
             .attr("d", path); //project the lines
+        */
 
         //add the metro counties to the map
         var counties = map.append("path")

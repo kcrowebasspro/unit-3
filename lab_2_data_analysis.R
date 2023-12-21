@@ -62,15 +62,53 @@ class(mke.evict.join.sf)
 
 mke.evict.join.sf <- st_transform(mke.evict.join.sf, crs = 4326)
 
-# write out the geojson
-mkegeojson_write(mke.evict.join.sf, file = "C:/Users/kcrow/Documents/geog575/unit-3/data/mke_evictions_w_rents.geojson")
+mke.evict.join.sf <- mke.evict.join.sf %>%
+  filter(geoid != "55079990000")
 
 st_crs(mke.evict.join.sf)
 
-# Write out just the attributes to a CSV
-mke.evict.join.sf %>%
-  st_drop_geometry() %>%
-  write_csv("C:/Users/kcrow/Documents/geog575/unit-3/data/mke_evictions_w_rents_data.CSV")
+
+# drop the geometry
+mke.evict.join.df <- mke.evict.join.sf %>%
+  st_drop_geometry()
+
+is.na()
+
+# Get rid of NAs and Inf
+mke.evict.join.df <- mke.evict.join.df %>%
+  mutate(month_rate = ifelse(is.finite(month_rate), month_rate, NA)) %>%
+  replace(is.na(.), 0) 
+
+# Round the numbers
+mke.evict.join.df %>%
+  mutate(pct_med_rent = round(pct_med_rent, 1),
+         month_rate = round(month_rate*100,1),
+         month_rate_scale_max = round(month_rate_scale_max*100,1),
+         month_diff = round(month_diff*100,1),
+         pct_white = round(pct_white*100,1),
+         pct_black = round(pct_black*100,1),
+         pct_latinx = round(pct_latinx*100,1))
+
+# Select a subset of columns to write out
+mke.evict.join.df %>%
+  filter(geoid != "55079990000") %>%
+  select(geoid, med_rent:pct_med_rent, month_filings:pct_latinx) %>%
+  write_csv("C:/Users/kcrow/Documents/geog575/unit-3/data/mke_evict.CSV")
+
+
+
+
+# strip down the SF object to just have a few fields -- it needs geoid
+
+mke.evict.join.sf <- mke.evict.join.sf %>%
+  select(geoid, tract_name)
+
+# write out the geojson
+geojson_write(mke.evict.join.sf, file = "C:/Users/kcrow/Documents/geog575/unit-3/data/mke_tracts.geojson")
+
+
+
+
 
 # Pull some counties for Wisconsin
 wi.counties.2019.sf <- get_acs(
@@ -83,13 +121,15 @@ wi.counties.2019.sf <- get_acs(
 
 
 # Select the MKE Metro Area
-wi.counties.2019.sf %>%
+mke.metro.counties <- wi.counties.2019.sf %>%
   filter(grepl("washington", NAME, ignore.case = TRUE ) |
            grepl("ozaukee", NAME, ignore.case = TRUE ) |
            grepl("waukesha", NAME, ignore.case = TRUE ) |
            grepl("milwaukee", NAME, ignore.case = TRUE ) |
            grepl("racine", NAME, ignore.case = TRUE ))
 
+# Write that file out
+geojson_write(mke.metro.counties, file = "C:/Users/kcrow/Documents/geog575/unit-3/data/metro_counties.geojson")
 
 
 
