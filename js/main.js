@@ -42,7 +42,7 @@ function setMap(){
             mkeCounties = data[2];
 
             console.log(evictData);
-            
+
         //create the features variable
         var countyBounds = topojson.feature(mkeCounties, mkeCounties.objects.metro_counties),
         countyTracts = topojson.feature(mkeTracts, mkeTracts.objects.mke_tracts).features;    
@@ -68,7 +68,7 @@ function setMap(){
 
                     //assign all attributes and values
                     attrArray.forEach(function(attr){
-                        var val = parseFloat(evictData[attr]); //get the csv attribute value
+                        var val = parseFloat(csvTract[attr]); //get the csv attribute value
                         geojsonProps[attr] = val; //assign attribute and value to geojson properties
                     });
                     console.log(geojsonProps);
