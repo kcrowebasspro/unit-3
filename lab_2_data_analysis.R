@@ -80,7 +80,7 @@ mke.evict.join.df <- mke.evict.join.df %>%
   replace(is.na(.), 0) 
 
 # Round the numbers
-mke.evict.join.df %>%
+mke.evict.join.df <- mke.evict.join.df %>%
   mutate(pct_med_rent = round(pct_med_rent, 1),
          month_rate = round(month_rate*100,1),
          month_rate_scale_max = round(month_rate_scale_max*100,1),
@@ -92,7 +92,7 @@ mke.evict.join.df %>%
 # Select a subset of columns to write out
 mke.evict.join.df %>%
   filter(geoid != "55079990000") %>%
-  select(geoid, med_rent:pct_med_rent, month_filings:pct_latinx) %>%
+  select(geoid, med_rent:pct_med_rent, month_filings, month_rate, pct_white:pct_latinx) %>%
   write_csv("C:/Users/kcrow/Documents/geog575/unit-3/data/mke_evict.CSV")
 
 
@@ -131,5 +131,18 @@ mke.metro.counties <- wi.counties.2019.sf %>%
 # Write that file out
 geojson_write(mke.metro.counties, file = "C:/Users/kcrow/Documents/geog575/unit-3/data/metro_counties.geojson")
 
+# plot the pct black and evictions
+mke.evict.join.df %>%
+  mutate(pct_non_white = 100-pct_white) %>%
+  ggplot(aes(x = pct_non_white, y = month_rate)) +
+  geom_point() +
+  geom_smooth(method=lm)
+
+mke.evict.join.df %>%
+  mutate(pct_non_white = 100-pct_white) %>%
+  ggplot(aes(x = pct_black, y = month_rate)) +
+  geom_point() +
+  geom_smooth(method=lm)
 
 
+cor(mke.evict.join.df$med_rent, mke.evict.join.df$month_rate)
