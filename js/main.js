@@ -71,6 +71,10 @@ function setMap(){
 
         //add the chart function
         setChart(evictData, colorScale);
+
+        //call the dropdown menu function
+        createDropdown(evictData);
+
     };
 }; //end of setMap()
 
@@ -141,7 +145,7 @@ function joinData(countyTracts, evictData){
     };
 
 //Function to set the enumeration units of the county tracts
-    function setEnumerationUnits(countyTracts, map, path, colorScale){
+function setEnumerationUnits(countyTracts, map, path, colorScale){
         //add MKE tracts to the map
         var tracts = map.selectAll(".tracts")
         .data(countyTracts)
@@ -238,6 +242,79 @@ function setChart(evictData, colorScale){
         .attr("transform", translate);
 };
 
+//function to create a dropdown menu for attribute selection
+function createDropdown(evictData){
+    //add select element
+    var dropdown = d3.select("body")
+        .append("select")
+        .attr("class", "dropdown")
+        .on("change", function(){
+            changeAttribute(this.value, evictData)
+        });
+
+    //add initial option
+    var titleOption = dropdown.append("option")
+        .attr("class", "titleOption")
+        .attr("disabled", "true")
+        .text("Select Attribute");
+
+    //add attribute name options
+    var attrOptions = dropdown.selectAll("attrOptions")
+        .data(attrArray)
+        .enter()
+        .append("option")
+        .attr("value", function(d){ return d })
+        .text(function(d){ return d });
+};
+
+//dropdown change event handler
+function changeAttribute(attribute, evictData) {
+    //change the expressed attribute
+    expressed = attribute;
+    console.log(expressed);
+
+    //recreate the color scale
+    var colorScale = makeColorScale(evictData);
+
+    //recolor enumeration units
+    var tracts = d3.selectAll(".tracts").style("fill", function (d) {
+        var value = d.properties[expressed];
+        if (value) {
+            return colorScale(d.properties[expressed]);
+        } else {
+            return "#ccc";
+        }
+    });
+
+//Sort, resize, and recolor bars
+    var bars = d3.selectAll(".bar")
+        //Sort bars
+        .sort(function(a, b){
+            return b[expressed] - a[expressed];
+        })
+        .attr("x", function(d, i){
+            return i * (chartInnerWidth / csvData.length) + leftPadding;
+        })
+        //resize bars
+        .attr("height", function(d, i){
+            return 463 - yScale(parseFloat(d[expressed]));
+        })
+        .attr("y", function(d, i){
+            return yScale(parseFloat(d[expressed])) + topBottomPadding;
+        })
+        //recolor bars
+        .style("fill", function(d){            
+            var value = d[expressed];            
+            if(value) {                
+                return colorScale(value);            
+            } else {                
+                return "#ccc";            
+            }    
+    });
+
+
+    
+}
 
 
 })(); //last line of main.js
