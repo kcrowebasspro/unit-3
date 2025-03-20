@@ -60,11 +60,8 @@ window.onload = function(){
 
     //scale for circles center y coordinate
     var y = d3.scaleLinear()
-        .range([440, 95])
-        .domain([
-            minPop,
-            maxPop
-        ]);
+        .range([450, 50])
+        .domain([0, 700000]);
 
         //color scale generator 
     var color = d3.scaleLinear()
@@ -77,6 +74,61 @@ window.onload = function(){
             maxPop
         ]);
 
+    //create y axis generator
+    var yAxis = d3.axisLeft(y);
+
+    //create axis g element and add axis
+    var axis = container.append("g")
+        .attr("class", "axis")
+        .attr("transform", "translate(50, 0)")
+        .call(yAxis);
+
+    // create a text element and add the title
+    var title = container.append("text")
+        .attr("class", "title")
+        .attr("text-anchor", "middle")
+        .attr("x", 450)
+        .attr("y", 30)
+        .text("City Populations");
+
+    // create circle labels
+     var labels = container.selectAll(".labels")
+        .data(cityPop)
+        .enter()
+        .append("text")
+        .attr("class", "labels")
+        .attr("text-anchor", "left")
+        .attr("y", function(d){
+            //vertical position centered on each circle
+            return y(d.population) + 5;
+        });
+
+    //first line of label
+    var nameLine = labels.append("tspan")
+        .attr("class", "nameLine")
+        .attr("x", function(d,i){
+            //horizontal position to the right of each circle
+            return x(i) + Math.sqrt(d.population * 0.01 / Math.PI) + 5;
+        })
+        .text(function(d){
+            return d.city;
+        });
+    
+    //create format generator
+    var format = d3.format(",");
+
+    // second line of label
+    var popLine = labels.append("tspan")
+        .attr("class", "popLine")
+        .attr("x", function(d,i){
+            //horizontal position to the right of each circle
+            return x(i) + Math.sqrt(d.population * 0.01 / Math.PI) + 5;
+        })
+        .attr("dy", "15") //vertical offset
+        .text(function(d){
+            return "Pop. " + format(d.population);
+        });
+    
     // create the circles
     var circles = container.selectAll(".circles") //but wait--there are no circles yet!
         .data(cityPop) //here we feed in an array
