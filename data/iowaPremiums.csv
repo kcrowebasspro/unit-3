@@ -1,4 +1,4 @@
-zipCode,avgPrem2018,avgPrem2022,premChange,premPctChange,nonRenewRate,nonPayRate,claimSeverity,claimFrequency,lossRatio
+GEOID20,avgPrem2018,avgPrem2022,premChange,premPctChange,nonRenewRate,nonPayRate,claimSeverity,claimFrequency,lossRatio
 "50001",1571.18,1784.96,213.78,13.6,0.3,1.4,10049.01,5.7,30.19
 "50002",1442.56,1846.41,403.84,28,0.5,1.1,15365.13,8.2,113.52
 "50003",1590.47,1842.95,252.48,15.9,0.9,1.5,15968.11,5.5,47.03
