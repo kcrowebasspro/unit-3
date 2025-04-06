@@ -1,3 +1,12 @@
+//First line of main.js...wrap everything in a self-executing anonymous function to move to local scope
+(function(){
+
+     //variables for data join -- now pseudo global
+     var attrArray = ["avgPrem2018", "avgPrem2022", "premChange", "premPctChange", "nonRenewRate", 
+        "nonPayRate", "claimSeverity", "claimFrequency", "lossRatio"];
+
+    var expressed = attrArray[0]; //initial attribute
+
 //begin script when window loads
 window.onload = setMap();
 
@@ -41,12 +50,46 @@ function setMap(){
     
         //convert topojson to geojson
         var iowaZips = topojson.feature(zips, zips.objects.iowa_ZIPs).features;
-       
-        //variables for data join
-        var attrArray = ["avgPrem2018", "avgPrem2022", "premChange", "premPctChange", "nonRenewRate", 
-            "nonPayRate", "claimSeverity", "claimFrequency", "lossRatio"];
+        
+        //join csv data to geojson enumeration units
+        iowaZips = joinData(iowaZips, csvData);
 
-        //loop through csv to assign each set of csv attribute values to geojson region
+        // add enumeration units to the map
+        setEnumerationUnits(iowaZips, map, path); 
+        
+        //function to create color scale generator
+        function makeColorScale(data){
+            var colorClasses = [
+                "#D4B9DA",
+                "#C994C7",
+                "#DF65B0",
+                "#DD1C77",
+                "#980043"
+            ];
+
+            //create color scale generator
+            var colorScale = d3.scaleQuantile()
+                .range(colorClasses);
+
+            //build array of all values of the expressed attribute
+            var domainArray = [];
+            for (var i=0; i<data.length; i++){
+                var val = parseFloat(data[i][expressed]);
+                domainArray.push(val);
+            };
+
+            //assign array of expressed values as scale domain
+            colorScale.domain(domainArray);
+
+            return colorScale;
+            };
+
+    }
+};
+
+function joinData(iowaZips, csvData){
+    //...DATA JOIN LOOPS FROM EXAMPLE 1.1
+            //loop through csv to assign each set of csv attribute values to geojson region
         for (var i=0; i<csvData.length; i++){
             var csvZip = csvData[i]; //the current region
             var csvKey = csvZip.GEOID20; //the CSV primary key
@@ -69,15 +112,20 @@ function setMap(){
             };
         };
 
-        
-        // add the Iowa zip codes to the map
-        var zipCodes = map.selectAll(".zips")
-            .data(iowaZips).enter()
-            .append("path")
-            .attr("class", function(d){
-                return "zipCodes " + d.properties.GEOID20;
-            })
-            .attr("d", path);
-
-    }
+    return iowaZips;
 };
+
+function setEnumerationUnits(iowaZips, map, path){
+    // add the Iowa zip codes to the map
+    var zipCodes = map.selectAll(".zips")
+    .data(iowaZips).enter()
+    .append("path")
+    .attr("class", function(d){
+        return "zipCodes " + d.properties.GEOID20;
+    })
+    .attr("d", path);
+};
+
+
+
+})(); //last line of main.js
