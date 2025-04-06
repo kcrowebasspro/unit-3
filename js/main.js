@@ -14,7 +14,7 @@ window.onload = setMap();
 function setMap(){
 
     //map frame dimensions
-    var width = 960,
+    var width = window.innerWidth * 0.5,
         height = 460;
 
     //create new svg container for the map
@@ -26,10 +26,10 @@ function setMap(){
 
     //create Albers equal area conic projection centered on Iowa
     var projection = d3.geoAlbers()
-        .center([8, 42.3])
+        .center([8.5, 42.3])
         .rotate([102, 0, 0])
         .parallels([29.5, 45.5])
-        .scale(6500)
+        .scale(5000)
         .translate([width / 2, height / 2]);
 
     //create path generator  
@@ -54,39 +54,47 @@ function setMap(){
         //join csv data to geojson enumeration units
         iowaZips = joinData(iowaZips, csvData);
 
+        //create the color scale
+        var colorScale = makeColorScale(csvData);
+
         // add enumeration units to the map
-        setEnumerationUnits(iowaZips, map, path); 
-        
-        //function to create color scale generator
-        function makeColorScale(data){
-            var colorClasses = [
-                "#D4B9DA",
-                "#C994C7",
-                "#DF65B0",
-                "#DD1C77",
-                "#980043"
-            ];
+        setEnumerationUnits(iowaZips, map, path, colorScale); 
 
-            //create color scale generator
-            var colorScale = d3.scaleQuantile()
-                .range(colorClasses);
-
-            //build array of all values of the expressed attribute
-            var domainArray = [];
-            for (var i=0; i<data.length; i++){
-                var val = parseFloat(data[i][expressed]);
-                domainArray.push(val);
-            };
-
-            //assign array of expressed values as scale domain
-            colorScale.domain(domainArray);
-
-            return colorScale;
-            };
+        //add coordinated visualization to the map
+        setChart(csvData, colorScale);
 
     }
 };
 
+ //function to create color scale generator
+function makeColorScale(data){
+    var colorClasses = [
+        "#D4B9DA",
+        "#C994C7",
+        "#DF65B0",
+        "#DD1C77",
+        "#980043"
+    ];
+
+    //create color scale generator
+    var colorScale = d3.scaleQuantile()
+        .range(colorClasses);
+
+    //build two-value array of minimum and maximum expressed attribute values
+    var minmax = [
+        d3.min(data, function(d) { return parseFloat(d[expressed]); }),
+        d3.max(data, function(d) { return parseFloat(d[expressed]); })
+    ];
+    //assign two-value array as scale domain
+    colorScale.domain(minmax);
+
+    console.log(colorScale.quantiles());
+
+    return colorScale;
+
+};
+
+//function to join csv data to geojson enumeration units
 function joinData(iowaZips, csvData){
     //...DATA JOIN LOOPS FROM EXAMPLE 1.1
             //loop through csv to assign each set of csv attribute values to geojson region
@@ -115,7 +123,7 @@ function joinData(iowaZips, csvData){
     return iowaZips;
 };
 
-function setEnumerationUnits(iowaZips, map, path){
+function setEnumerationUnits(iowaZips, map, path, colorScale){
     // add the Iowa zip codes to the map
     var zipCodes = map.selectAll(".zips")
     .data(iowaZips).enter()
@@ -123,9 +131,24 @@ function setEnumerationUnits(iowaZips, map, path){
     .attr("class", function(d){
         return "zipCodes " + d.properties.GEOID20;
     })
-    .attr("d", path);
+    .attr("d", path)
+    .style("fill", function(d){
+        return colorScale(d.properties[expressed]);
+    });
 };
 
+//function to create coordinated bar chart
+function setChart(csvData, colorScale){
+    //chart frame dimensions
+    var chartWidth = window.innerWidth * 0.425,
+        chartHeight = 460;
 
+    //create a second svg element to hold the bar chart
+    var chart = d3.select("body")
+        .append("svg")
+        .attr("width", chartWidth)
+        .attr("height", chartHeight)
+        .attr("class", "chart");
+};
 
 })(); //last line of main.js
