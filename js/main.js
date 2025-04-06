@@ -2,7 +2,7 @@
 (function(){
 
      //variables for data join -- now pseudo global
-     var attrArray = ["avgPrem2018", "avgPrem2022", "premChange", "premPctChange", "nonRenewRate", 
+     var attrArray = ["avgPrem2022", "nonRenewRate", 
         "nonPayRate", "claimSeverity", "claimFrequency", "lossRatio"];
 
     var expressed = attrArray[0]; //initial attribute
@@ -26,10 +26,10 @@ function setMap(){
 
     //create Albers equal area conic projection centered on Iowa
     var projection = d3.geoAlbers()
-        .center([8.5, 42.3])
+        .center([8.25, 41.5])
         .rotate([102, 0, 0])
         .parallels([29.5, 45.5])
-        .scale(5000)
+        .scale(10000)
         .translate([width / 2, height / 2]);
 
     //create path generator  
@@ -38,8 +38,8 @@ function setMap(){
 
     //use Promise.all to parallelize asynchronous data loading
     var promises = [];
-    promises.push(d3.csv("data/iowaPremiums.csv")); // load the attribute data
-    promises.push(d3.json("data/IowaZips.topojson")); // load the Iowa zip code data                                         
+    promises.push(d3.csv("data/desMoinesPremiums.csv")); // load the attribute data
+    promises.push(d3.json("data/desMoinesZIPs.topojson")); // load the Iowa zip code data                                         
     Promise.all(promises).then(callback);
 
     function callback(data) {
@@ -49,7 +49,7 @@ function setMap(){
             console.log(csvData);
     
         //convert topojson to geojson
-        var iowaZips = topojson.feature(zips, zips.objects.iowa_ZIPs).features;
+        var iowaZips = topojson.feature(zips, zips.objects.desMoinesZIPs).features;
         
         //join csv data to geojson enumeration units
         iowaZips = joinData(iowaZips, csvData);
@@ -141,7 +141,13 @@ function setEnumerationUnits(iowaZips, map, path, colorScale){
 function setChart(csvData, colorScale){
     //chart frame dimensions
     var chartWidth = window.innerWidth * 0.425,
-        chartHeight = 460;
+        chartHeight = 473,
+        leftPadding = 35,
+        rightPadding = 2,
+        topBottomPadding = 5,
+        chartInnerWidth = chartWidth - leftPadding - rightPadding,
+        chartInnerHeight = chartHeight - topBottomPadding * 2,
+        translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
 
     //create a second svg element to hold the bar chart
     var chart = d3.select("body")
@@ -149,6 +155,67 @@ function setChart(csvData, colorScale){
         .attr("width", chartWidth)
         .attr("height", chartHeight)
         .attr("class", "chart");
+
+    //create a rectangle for chart background fill
+    var chartBackground = chart.append("rect")
+        .attr("class", "chartBackground")
+        .attr("width", chartInnerWidth)
+        .attr("height", chartInnerHeight)
+        .attr("transform", translate);
+
+    //create a scale to size bars proportionally to frame and for axis
+    var yScale = d3.scaleLinear()
+        .range([463, 0])
+        .domain([0, 2500]);
+
+    //set bars for each province
+    var bars = chart.selectAll(".bar")
+        .data(csvData)
+        .enter()
+        .append("rect")
+        .sort(function(a, b){
+            return b[expressed]-a[expressed]
+        })
+        .attr("class", function(d){
+            return "bar " + d.adm1_code;
+        })
+        .attr("width", chartInnerWidth / csvData.length - 1)
+        .attr("x", function(d, i){
+            return i * (chartInnerWidth / csvData.length) + leftPadding;
+        })
+        .attr("height", function(d, i){
+            return 463 - yScale(parseFloat(d[expressed]));
+        })
+        .attr("y", function(d, i){
+            return yScale(parseFloat(d[expressed])) + topBottomPadding;
+        })
+        .style("fill", function(d){
+            return colorScale(d[expressed]);
+        });
+
+    //create a text element for the chart title
+    var chartTitle = chart.append("text")
+        .attr("x", 40)
+        .attr("y", 40)
+        .attr("class", "chartTitle")
+        .text("Cost of Homeowners Insurance in Des Moines, IA (2022)");
+
+    //create vertical axis generator
+    var yAxis = d3.axisLeft()
+        .scale(yScale);
+
+    //place axis
+    var axis = chart.append("g")
+        .attr("class", "axis")
+        .attr("transform", translate)
+        .call(yAxis);
+
+    //create frame for chart border
+    var chartFrame = chart.append("rect")
+        .attr("class", "chartFrame")
+        .attr("width", chartInnerWidth)
+        .attr("height", chartInnerHeight)
+        .attr("transform", translate);
 };
 
 })(); //last line of main.js
