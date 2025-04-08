@@ -248,27 +248,67 @@ function createDropdown(csvData){
 
 //dropdown change event handler
 function changeAttribute(attribute, csvData) {
-    //change the expressed attribute
+    // Change the expressed attribute based on dropdown selection
     expressed = attribute;
-    console.log(expressed);
+    console.log("New attribute: " + expressed);
 
-    //recreate the color scale
+    // Recreate the color scale based on the new attribute values
     var colorScale = makeColorScale(csvData);
 
-    //recolor enumeration units
-    var zips = d3.selectAll(".zipCodes").style("fill", function (d) {
+
+    //-------- MAP UPDATES --------//
+
+    // Updated code: using the correct class name set in setEnumerationUnits
+    var zipCodes = d3.selectAll(".zipCodes").style("fill", function (d) {
         var value = d.properties[expressed];
-        if (value) {
-            return colorScale(d.properties[expressed]);
-        } else {
-            return "#ccc";
-        }
-        
+        return value ? colorScale(value) : "#ccc";
     });
 
+    //-------- CHART UPDATES --------//
+
+    // 1. Update the chart title with the new attribute
+    d3.select(".chartTitle")
+        .text(expressed + " in Des Moines, IA (2022)");
+
+    // 2. Create a new y-scale for the bar chart based on the new attribute's value range.
+    var yScale = d3.scaleLinear()
+        .range([463, 0])
+        .domain([0, d3.max(csvData, function(d) { 
+            return parseFloat(d[expressed]); 
+        })]);
+
+    // 3. Update the y-axis with the new scale and add a smooth transition.
+    var yAxis = d3.axisLeft().scale(yScale);
+    d3.select(".axis")
+        .transition()
+        .duration(500)
+        .call(yAxis);
+
+    // 4. Updated code: recalc x positions based on the new sorted order.
+    var chartWidth = window.innerWidth * 0.425,
+        leftPadding = 35,
+        rightPadding = 2,
+        chartInnerWidth = chartWidth - leftPadding - rightPadding;
+
+    // Now select and update all bars
+    d3.selectAll(".bar")
+        .sort(function(a, b) {
+            return b[expressed] - a[expressed];
+        })
+        .transition()
+        .duration(500)
+        .attr("x", function(d, i) {
+            return i * (chartInnerWidth / csvData.length) + leftPadding;
+        })
+        .attr("height", function(d) {
+            return 463 - yScale(parseFloat(d[expressed]));
+        })
+        .attr("y", function(d) {
+            return yScale(parseFloat(d[expressed])) + 5;
+        })
+        .style("fill", function(d) {
+            return colorScale(d[expressed]);
+        });
 }
-
-
-
 
 })(); //last line of main.js
