@@ -255,6 +255,7 @@ function changeAttribute(attribute, csvData) {
     // Recreate the color scale based on the new attribute values
     var colorScale = makeColorScale(csvData);
 
+
     //-------- MAP UPDATES --------//
 
     // Updated code: using the correct class name set in setEnumerationUnits
