@@ -256,7 +256,7 @@ function changeAttribute(attribute, csvData) {
     var colorScale = makeColorScale(csvData);
 
     //recolor enumeration units
-    var zipCodes = d3.selectAll(".zips").style("fill", function (d) {
+    var zips = d3.selectAll(".zipCodes").style("fill", function (d) {
         var value = d.properties[expressed];
         if (value) {
             return colorScale(d.properties[expressed]);
