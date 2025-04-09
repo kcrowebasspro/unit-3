@@ -126,6 +126,7 @@ function joinData(iowaZips, csvData){
     return iowaZips;
 };
 
+//function to set enumeration units on the map and shade them
 function setEnumerationUnits(iowaZips, map, path, colorScale){
     // add the Iowa zip codes to the map
     var zipCodes = map.selectAll(".zips")
@@ -137,7 +138,18 @@ function setEnumerationUnits(iowaZips, map, path, colorScale){
     .attr("d", path)
     .style("fill", function(d){
         return colorScale(d.properties[expressed]);
-    });
+    })
+    .on("mouseover", function(event, d){
+        highlight(d.properties);
+    })
+    .on("mouseout", function(event, d){
+        dehighlight(d.properties);
+    })
+    .on("mousemove", moveLabel);
+
+    // add style descriptor to each path
+    var desc = zipCodes.append("desc")
+        .text('{"stroke": "#000", "stroke-width": "0.5px"}');
 };
 
 //function to create coordinated bar chart
@@ -171,7 +183,7 @@ function setChart(csvData, colorScale){
         .range([463, 0])
         .domain([0, 2500]);
 
-    //set bars for each province
+    //set bars for each ZIP Code
     var bars = chart.selectAll(".bar")
         .data(csvData)
         .enter()
@@ -180,7 +192,7 @@ function setChart(csvData, colorScale){
             return b[expressed]-a[expressed]
         })
         .attr("class", function(d){
-            return "bar " + d.adm1_code;
+            return "bar " + d.GEOID20;
         })
         .attr("width", chartInnerWidth / csvData.length - 1)
         .attr("x", function(d, i){
@@ -194,7 +206,18 @@ function setChart(csvData, colorScale){
         })
         .style("fill", function(d){
             return colorScale(d[expressed]);
-        });
+        })
+        .on("mouseover", function(event, d){
+            highlight(d);
+        })
+        .on("mouseout", function(event, d){
+            dehighlight(d.properties);
+        })
+        .on("mousemove", moveLabel);
+
+    //add style descriptor to each rect
+    var desc = bars.append("desc")
+        .text('{"stroke": "none", "stroke-width": "0px"}');
 
     //create a text element for the chart title
     var chartTitle = chart.append("text")
@@ -256,15 +279,11 @@ function changeAttribute(attribute, csvData) {
     var colorScale = makeColorScale(csvData);
 
 
-    //-------- MAP UPDATES --------//
-
-    // Updated code: using the correct class name set in setEnumerationUnits
+    // Change colors of ZIP codes
     var zipCodes = d3.selectAll(".zipCodes").style("fill", function (d) {
         var value = d.properties[expressed];
         return value ? colorScale(value) : "#ccc";
     });
-
-    //-------- CHART UPDATES --------//
 
     // 1. Update the chart title with the new attribute
     d3.select(".chartTitle")
@@ -310,5 +329,83 @@ function changeAttribute(attribute, csvData) {
             return colorScale(d[expressed]);
         });
 }
+
+//function to highlight enumeration units and bars
+function highlight(props){
+    //change stroke
+    var selected = d3.selectAll("." + props.GEOID20)
+        .style("stroke", "blue")
+        .style("stroke-width", "2");
+    
+    // add the label
+    setLabel(props);
+};
+
+//function to reset the element style on mouseout
+function dehighlight(props){
+    var selected = d3.selectAll("." + props.GEOID20)
+        .style("stroke", function(){
+            return getStyle(this, "stroke")
+        })
+        .style("stroke-width", function(){
+            return getStyle(this, "stroke-width")
+        });
+
+    function getStyle(element, styleName){
+        var styleText = d3.select(element)
+            .select("desc")
+            .text();
+
+        var styleObject = JSON.parse(styleText);
+
+        return styleObject[styleName];
+    };
+
+    //remove info label
+    d3.select(".infolabel")
+        .remove();
+};
+
+//function to create dynamic label
+function setLabel(props){
+    //label content
+    var labelAttribute = "<h1>" + props[expressed] +
+        "</h1><b>" + expressed + "</b>";
+
+    //create info label div
+    var infolabel = d3.select("body")
+        .append("div")
+        .attr("class", "infolabel")
+        .attr("id", props.GEOID20 + "_label")
+        .html(labelAttribute);
+
+    var zipCode = infolabel.append("div")
+        .attr("class", "labelname")
+        .html(props.name);
+};
+
+//function to move info label with mouse
+function moveLabel(){
+    //get width of label
+    var labelWidth = d3.select(".infolabel")
+        .node()
+        .getBoundingClientRect()
+        .width;
+
+    //use coordinates of mousemove event to set label coordinates
+    var x1 = event.clientX + 10,
+        y1 = event.clientY - 75,
+        x2 = event.clientX - labelWidth - 10,
+        y2 = event.clientY + 25;
+
+    //horizontal label coordinate, testing for overflow
+    var x = event.clientX > window.innerWidth - labelWidth - 20 ? x2 : x1; 
+    //vertical label coordinate, testing for overflow
+    var y = event.clientY < 75 ? y2 : y1; 
+
+    d3.select(".infolabel")
+        .style("left", x + "px")
+        .style("top", y + "px");
+};
 
 })(); //last line of main.js
