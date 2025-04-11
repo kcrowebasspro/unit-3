@@ -39,17 +39,22 @@ function setMap(){
     //use Promise.all to parallelize asynchronous data loading
     var promises = [];
     promises.push(d3.csv("data/desMoinesPremiums.csv")); // load the attribute data
-    promises.push(d3.json("data/desMoinesZIPs.topojson")); // load the Iowa zip code data                                         
+    promises.push(d3.json("data/desMoinesZIPs.topojson")); // load the Iowa zip code data  
+    promises.push(d3.json("data/iowaCounties.topojson")); // load Iowa counties                                      
     Promise.all(promises).then(callback);
+
+  
 
     function callback(data) {
         var csvData = data[0],
             zips = data[1];
+            counties = data[2];
             console.log(zips);
             console.log(csvData);
     
         //convert topojson to geojson
         var iowaZips = topojson.feature(zips, zips.objects.desMoinesZIPs).features;
+        var iowaCounties = topojson.feature(counties, counties.objects.iowaCounties).features;
         
         //join csv data to geojson enumeration units
         iowaZips = joinData(iowaZips, csvData);
@@ -58,7 +63,7 @@ function setMap(){
         var colorScale = makeColorScale(csvData);
 
         // add enumeration units to the map
-        setEnumerationUnits(iowaZips, map, path, colorScale); 
+        setEnumerationUnits(iowaCounties, iowaZips, map, path, colorScale); 
 
         //add coordinated visualization to the map
         setChart(csvData, colorScale);
@@ -72,11 +77,11 @@ function setMap(){
  //function to create color scale generator
 function makeColorScale(data){
     var colorClasses = [
-        "#D4B9DA",
-        "#C994C7",
-        "#DF65B0",
-        "#DD1C77",
-        "#980043"
+        "#feedde",
+        "#fdbe85",
+        "#fd8d3c",
+        "#e6550d",
+        "#a63603"
     ];
 
     //create color scale generator
@@ -102,7 +107,7 @@ function joinData(iowaZips, csvData){
     //...DATA JOIN LOOPS FROM EXAMPLE 1.1
             //loop through csv to assign each set of csv attribute values to geojson region
         for (var i=0; i<csvData.length; i++){
-            var csvZip = csvData[i]; //the current region
+            var csvZip = csvData[i]; //the current ZIP
             var csvKey = csvZip.GEOID20; //the CSV primary key
 
             //loop through geojson regions to find correct region
@@ -127,7 +132,23 @@ function joinData(iowaZips, csvData){
 };
 
 //function to set enumeration units on the map and shade them
-function setEnumerationUnits(iowaZips, map, path, colorScale){
+function setEnumerationUnits(iowaCounties, iowaZips, map, path, colorScale){
+
+    // add the Des Moines metro area counties to the map
+    var counties = map.selectAll(".counties")
+        .data(iowaCounties).enter()
+        .append("path")
+        .attr("class", function(d){
+            return "counties " + d.properties.GEOID20;
+        })
+        .attr("d", path)
+        .style("fill", "none")
+        .style("stroke", "#000")
+        .style("stroke-width", "0.5px");
+
+    // Create a tooltip
+    var tooltip = d3.select("#tooltip");
+
     // add the Iowa zip codes to the map
     var zipCodes = map.selectAll(".zips")
     .data(iowaZips).enter()
@@ -138,14 +159,34 @@ function setEnumerationUnits(iowaZips, map, path, colorScale){
     .attr("d", path)
     .style("fill", function(d){
         return colorScale(d.properties[expressed]);
+    }).on("mouseover", function(event, d) {
+        // Highlight zip Code
+        d3.select(this).classed("selected", true);
+        
+        // Show tooltip
+        tooltip.style("opacity", 0.9)
+            .html(`
+                <strong>${d.properties.GEOID20}</strong><br/>
+                ${formatValue(d.properties[expressed], expressed)}
+            `)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
+        
     })
-    .on("mouseover", function(event, d){
-        highlight(d.properties);
+    .on("mouseout", function() {
+        // Remove highlight
+        d3.select(this).classed("selected", false);
+        
+        // Hide tooltip
+        tooltip.style("opacity", 0);
+        
+        // Remove bar highlight
+        d3.selectAll(".bar").classed("selected", false);
     })
-    .on("mouseout", function(event, d){
-        dehighlight(d.properties);
-    })
-    .on("mousemove", moveLabel);
+    .on("click", function(event, d) {
+        // Handle click event (e.g., show more details)
+        console.log("Clicked on: ", d.properties[expressed]);
+    });
 
     // add style descriptor to each path
     var desc = zipCodes.append("desc")
@@ -206,14 +247,7 @@ function setChart(csvData, colorScale){
         })
         .style("fill", function(d){
             return colorScale(d[expressed]);
-        })
-        .on("mouseover", function(event, d){
-            highlight(d);
-        })
-        .on("mouseout", function(event, d){
-            dehighlight(d.properties);
-        })
-        .on("mousemove", moveLabel);
+        });
 
     //add style descriptor to each rect
     var desc = bars.append("desc")
@@ -266,7 +300,8 @@ function createDropdown(csvData){
         .enter()
         .append("option")
         .attr("value", function(d){ return d })
-        .text(function(d){ return d });
+        .text(function(d){ 
+            return getDataLabel(d) });
 };
 
 //dropdown change event handler
@@ -287,7 +322,7 @@ function changeAttribute(attribute, csvData) {
 
     // 1. Update the chart title with the new attribute
     d3.select(".chartTitle")
-        .text(expressed + " in Des Moines, IA (2022)");
+        .text(getDataLabel(expressed) + " in Des Moines, IA (2022)");
 
     // 2. Create a new y-scale for the bar chart based on the new attribute's value range.
     var yScale = d3.scaleLinear()
@@ -330,82 +365,58 @@ function changeAttribute(attribute, csvData) {
         });
 }
 
-//function to highlight enumeration units and bars
-function highlight(props){
-    //change stroke
-    var selected = d3.selectAll("." + props.GEOID20)
-        .style("stroke", "blue")
-        .style("stroke-width", "2");
-    
-    // add the label
-    setLabel(props);
+
+// Helper function to format values based on data type
+function formatValue(value, dataType, isCompact = false) {
+    if (dataType === "nonRenewRate") {
+        return isCompact 
+            ? d3.format(".1s")(value) + "%" 
+            : d3.format(",")(value) + "%";
+    } else if (dataType === "nonPayRate") {
+        return isCompact 
+            ? d3.format(".1s")(value) + "%"  
+            : d3.format(",")(value) + "%" ;
+    } else if (dataType === "claimSeverity") {
+        return isCompact 
+            ? d3.format(".1s")(value) + "%"  
+            : d3.format(",")(value) + "%" ;
+    } else if (dataType === "claimFrequency") {
+        return isCompact 
+            ? d3.format(".1s")(value) + "%"  
+            : d3.format(",")(value) + "%" ;
+    } else if (dataType === "claimFrequency") {
+        return isCompact 
+            ? d3.format(".1s")(value) + "%"  
+            : d3.format(",")(value) + "%" ;
+    } else if (dataType === "lossRatio") {
+        return isCompact 
+            ? d3.format(".1s")(value) + "%"  
+            : d3.format(",")(value) + "%" ;
+    } else if (dataType === "avgPrem2022") {
+        return isCompact 
+            ? "$" + d3.format(".2s")(value) 
+            : "$" + d3.format(",")(value);
+    }
+    return value;
+}
+
+// Helper function to get data label based on data type
+function getDataLabel(varName) {
+    if (varName === "avgPrem2022") {
+        return "Average Premium 2022";
+    } else if (varName === "nonRenewRate") {
+        return "Nonrenewal Rate";
+    } else if (varName === "nonPayRate") {
+        return "Nonpayment Rate";
+    } else if (varName === "claimSeverity") {
+        return "Claim Severity";
+    } else if (varName === "claimFrequency") {
+        return "Claim Frequency";
+    } else if (varName === "lossRatio") {
+        return "Loss Ratio";
+    }
+    return varName;
 };
 
-//function to reset the element style on mouseout
-function dehighlight(props){
-    var selected = d3.selectAll("." + props.GEOID20)
-        .style("stroke", function(){
-            return getStyle(this, "stroke")
-        })
-        .style("stroke-width", function(){
-            return getStyle(this, "stroke-width")
-        });
-
-    function getStyle(element, styleName){
-        var styleText = d3.select(element)
-            .select("desc")
-            .text();
-
-        var styleObject = JSON.parse(styleText);
-
-        return styleObject[styleName];
-    };
-
-    //remove info label
-    d3.select(".infolabel")
-        .remove();
-};
-
-//function to create dynamic label
-function setLabel(props){
-    //label content
-    var labelAttribute = "<h1>" + props[expressed] +
-        "</h1><b>" + expressed + "</b>";
-
-    //create info label div
-    var infolabel = d3.select("body")
-        .append("div")
-        .attr("class", "infolabel")
-        .attr("id", props.GEOID20 + "_label")
-        .html(labelAttribute);
-
-    var zipCode = infolabel.append("div")
-        .attr("class", "labelname")
-        .html(props.name);
-};
-
-//function to move info label with mouse
-function moveLabel(){
-    //get width of label
-    var labelWidth = d3.select(".infolabel")
-        .node()
-        .getBoundingClientRect()
-        .width;
-
-    //use coordinates of mousemove event to set label coordinates
-    var x1 = event.clientX + 10,
-        y1 = event.clientY - 75,
-        x2 = event.clientX - labelWidth - 10,
-        y2 = event.clientY + 25;
-
-    //horizontal label coordinate, testing for overflow
-    var x = event.clientX > window.innerWidth - labelWidth - 20 ? x2 : x1; 
-    //vertical label coordinate, testing for overflow
-    var y = event.clientY < 75 ? y2 : y1; 
-
-    d3.select(".infolabel")
-        .style("left", x + "px")
-        .style("top", y + "px");
-};
 
 })(); //last line of main.js
